@@ -1,0 +1,32 @@
+[
+    {
+        "model":"myapp.RoomData",
+        "pk":"1",
+        "fields":{
+            "room_name":"Auditorium",
+            "seats":"180",
+            "columns":"6",
+            "rows":"15"
+        }
+    },
+    {
+        "model":"myapp.RoomData",
+        "pk":"2",
+        "fields":{
+            "room_name":"F21",
+            "seats":"60",
+            "columns":"3",
+            "rows":"10"
+        }
+    },
+    {
+        "model":"myapp.RoomData",
+        "pk":"3",
+        "fields":{
+            "room_name":"G01",
+            "seats":"30",
+            "columns":"3",
+            "rows":"5"
+        }
+    }
+]

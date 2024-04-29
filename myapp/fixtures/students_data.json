@@ -1,0 +1,43 @@
+[
+    {
+        "model":"myapp.Student",
+        "pk":"1",
+        "fields":{
+            "name":"Don",
+            "prn":"12425155125",
+            "department":"BBA",
+            "cgpa":6.12
+        }
+    },
+    {
+        "model":"myapp.Student",
+        "pk":"2",
+        "fields":{
+            "name":"Shreya",
+            "prn":"210021027641",
+            "department":"Maths",
+            "cgpa":7.24
+        }
+    },
+    {
+        "model":"myapp.Student",
+        "pk":"3",
+        "fields":{
+            "name":"Abin",
+            "prn":"210021027657",
+            "department":"chemistry",
+            "cgpa":7.24
+        }
+    },
+    {
+        "model":"myapp.Student",
+        "pk":"4",
+        "fields":{
+            "name":"Amal",
+            "prn":"210021027635",
+            "department":"English",
+            "cgpa":6.29
+        }
+    }
+]
+

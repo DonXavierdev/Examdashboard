@@ -1,0 +1,12 @@
+[
+    {
+        "model":"myapp.Teacher",
+        "pk":"1",
+        "fields":{
+            "name":"John Doe",
+            "prn":"SPK0034",
+            "department":"BBA"
+        }
+    }
+]
+

@@ -1,0 +1,42 @@
+[
+    {
+        "model":"myapp.Notification",
+        "pk":"1",
+        "fields":{
+            "prn":"210021027643",
+            "message":"Sem 3 results Out now"
+        }
+    },
+    {
+        "model":"myapp.Notification",
+        "pk":"2",
+        "fields":{
+            "prn":"SPK0034",
+            "message":"Request for duty exchange"
+        }
+    },
+    {
+        "model":"myapp.Notification",
+        "pk":"3",
+        "fields":{
+            "prn":"210021027643",
+            "message":"Pay Your exam fees"
+        }
+    },
+    {
+        "model":"myapp.Notification",
+        "pk":"4",
+        "fields":{
+            "prn":"210021027643",
+            "message":"Exam postponement"
+        }
+    },
+    {
+        "model":"myapp.Notification",
+        "pk":"5",
+        "fields":{
+            "prn":"210021027657",
+            "message":"Exam postponement"
+        }
+    }
+]
