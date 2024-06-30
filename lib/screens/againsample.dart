@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:developer';
+
 
 void main() {
   runApp(MyApp());
@@ -14,59 +14,72 @@ class MyApp extends StatelessWidget {
           title: Text('Upcoming Exam'),
           
         ),
-        body: ExamScreen(),
+        body:BoxGrid(
+          columns: 3*2,
+          rows: 5,
+          studentRow:4,
+          studentCol: 1,
+          studentSeat: 1,
+        ),
       ),
     );
   }
 }
 
-class ExamScreen extends StatefulWidget {
-  @override
-  _ExamScreenState createState() => _ExamScreenState();
-}
+class BoxGrid extends StatelessWidget {
+  final int rows;
+  final int columns;
+  final int studentRow;
+  final int studentCol;
+  final int studentSeat;
 
-class _ExamScreenState extends State<ExamScreen> {
-  List<Map<String, dynamic>> userAlloc = [
-    {'date': '2024-04-24'},
-    {'date': '2024-05-10'},
-    {'date': '2024-05-15'},
-  ];
+  const BoxGrid({super.key, required this.rows, required this.columns ,required this.studentRow ,required this.studentCol,required this.studentSeat});
 
   @override
   Widget build(BuildContext context) {
-      DateTime today = DateTime.now();
-
-    DateTime? upcomingDate; 
-    
-    for (var allocation in userAlloc) {
-      DateTime allocDate = DateTime.parse(allocation['date']);
-        
-     if (allocDate.year == today.year &&
-        allocDate.month == today.month &&
-        allocDate.day == today.day) {
-        
-        upcomingDate = today;
-        break;
-      }
-      else if (allocDate.isAfter(today) &&
-          (upcomingDate == null || allocDate.isBefore(upcomingDate))) {
-        upcomingDate = allocDate;
-        
-      }
-    }
-
-    DateTime displayDate = upcomingDate ?? today;
-
-    return Center(
-      child: Text(
-        'You have an upcoming exam on ${displayDate.toString().split(' ')[0]}',
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'Raleway',
-          
-        ),
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: rows * columns, 
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
       ),
+      itemBuilder: (BuildContext context, int index) {
+        int rowIndex = index ~/ columns;
+        int columnIndex = index % columns;
+        if (columnIndex % 2 == 0) {
+          return Row(
+            children: [
+              Expanded(child: Box(rowIndex: rowIndex, columnIndex: columnIndex,studentRow:studentRow,studentCol:studentCol,studentSeat:studentSeat)),
+              Expanded(child: Box(rowIndex: rowIndex, columnIndex: columnIndex + 1,studentRow:studentRow,studentCol:studentCol,studentSeat:studentSeat)),
+            ],
+          );
+        } else {
+          return Container(); 
+        }
+      },
+    );
+  }
+}
+
+class Box extends StatelessWidget {
+  final int rowIndex;
+  final int columnIndex;
+  final int studentRow;
+  final int studentCol;
+  final int studentSeat;
+
+  const Box({super.key, required this.rowIndex, required this.columnIndex,required this.studentRow,required this.studentCol,required this.studentSeat});
+
+  @override
+  Widget build(BuildContext context) {
+    bool isGreen = rowIndex == studentRow && columnIndex  == (studentCol*2)+studentSeat; 
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(),
+        color: isGreen ? const Color(0xFFA0E4C3) : Colors.white, 
+      ),
+      height: 20, 
     );
   }
 }

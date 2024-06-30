@@ -1,5 +1,8 @@
 {
-    "java.configuration.runtimes": [],
+    "java.configuration.runtimes": [
+    
+    ],
     "java.jdt.ls.java.home": "/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home",
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "java.jdt.ls.vmargs": ""
 }

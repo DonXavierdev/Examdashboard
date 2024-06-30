@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'login_page.dart';
 import 'dart:async';
@@ -10,26 +11,27 @@ void main() {
     home: Builder(
       builder: (BuildContext context) {
         return const TeacherDashboard(
-          userType: '',userDept: '',userName: '',userPrn: '',userNotify: [], userAlloc: [],teacherNames:[],exchangeRequest:'' 
+          userType: '',userDept: '',userName: '',userPrn: '',userNotify: [], userAlloc: [],exchangeRequest:[] 
         );
       },
     ),
   ));
 }
-Future<void> markAttendance(String prn, int status) async {
+Future<void> markAttendance(String prn, int status, int examId) async {
   try {
     final response = await http.post(
       Uri.parse('http://127.0.0.1:8000/attendance/'),
-      body: {'prn': prn, 'status': status.toString()},
+      body: {'prn': prn, 'status': status.toString(), 'exam_id': examId.toString()},
     );
 
     if (response.statusCode == 200) {
-      // Handle successful response if needed
     } else {
-      // Handle error response if needed
+      // Optionally, you can throw an exception or handle the error further
+      // throw Exception('Failed to mark attendance'); // Uncomment to throw an exception
     }
   } catch (e) {
     // Handle exception if HTTP request fails
+    // For example, you can show a snackbar or toast with an error message
   }
 }
 
@@ -40,8 +42,9 @@ class TeacherDashboard extends StatefulWidget {
   final String userPrn;
   final List<String> userNotify;
   final  List<Map<String, dynamic>> userAlloc;
-  final List<String> teacherNames;
-  final String exchangeRequest;
+
+  final  List<dynamic>exchangeRequest;
+  
 
   const TeacherDashboard({
     Key? key,
@@ -51,7 +54,7 @@ class TeacherDashboard extends StatefulWidget {
     required this.userPrn,
     required this.userNotify,
     required this.userAlloc,
-    required this.teacherNames,
+ 
     required this.exchangeRequest,
     
   }) : super(key: key);
@@ -117,16 +120,62 @@ class TeacherDashboardState extends State<TeacherDashboard> {
   int selectedDateIndex = 0; 
   int fridayCounter = 0; 
    List<bool> cardVisibility = [];
+   List<bool> attendanceStatus = [];
+  List<String> teacherNames = [];
    bool _isVisible = true;
   @override
   void initState() {
     super.initState();
     countFridays();
     _loadingFuture = Future.delayed(const Duration(seconds: 0));
-    initializeCardVisibility();
   }
-  void initializeCardVisibility() {
-    // Initialize card visibility list with true values
+  Future<void> fetchInitialAttendanceStatus(selectedDateIndex) async {
+    int studentCount = widget.userAlloc[selectedDateIndex]['student_prns'].length;
+    List<bool> initialStatus = List<bool>.filled(studentCount, false);
+    List prn = widget.userAlloc[selectedDateIndex]['student_prns'];
+    
+      final response = await http.post(
+      Uri.parse('http://127.0.0.1:8000/attendance/status/'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'prn': prn,'exam_id':widget.userAlloc[selectedDateIndex]['exam_id']}),
+  );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        List<int> statusList = List<int>.from(data['status']);
+        setState(() {
+      for (int i = 0; i < studentCount; i++) {
+        initialStatus[i] = statusList[i] == 1; // Update the initialStatus list based on the statusList
+      }
+      attendanceStatus = initialStatus;
+    });
+      } else {
+        // Handle error response if needed
+      }
+    
+  }
+Future<void> grabTeacherNames(selectedDateIndex) async {
+  
+  final response = await http.post(
+    Uri.parse('http://127.0.0.1:8000/grab_teacher_names/'),
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'user_id': widget.userPrn,
+      'exam_id': widget.userAlloc[selectedDateIndex]['exam_id'],
+      'exam_date': widget.userAlloc[selectedDateIndex]['date'],
+    }),
+  );
+
+  if (response.statusCode == 200) {
+    setState(() {
+        teacherNames = List<String>.from(jsonDecode(response.body)['teacher_names']);
+      });
+  } else {
+  }
+}
+
+
+  void initializeCardVisibility(selectedDateIndex) {
     cardVisibility = List.generate(
       widget.userAlloc[selectedDateIndex]['student_prns'].length,
       (index) => true,
@@ -134,9 +183,8 @@ class TeacherDashboardState extends State<TeacherDashboard> {
   }
 void countFridays() {
     for (int i = 0; i < widget.userAlloc.length; i++) {
-      String date = widget.userAlloc[i]['date']; 
-      String dayOfWeek = getDayOfWeek(date); 
-      if (dayOfWeek == 'Fri') {
+      String date = widget.userAlloc[i]['day']; 
+      if (date == 'Friday') {
         fridayCounter++; 
       }
     }
@@ -144,7 +192,7 @@ void countFridays() {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-       backgroundColor:Colors.grey[400],
+       backgroundColor:const Color(0xFFF2F2F2),
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text(
@@ -185,17 +233,18 @@ void countFridays() {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const CustomLoadingScreen();
           } else {
-            DateTime today = DateTime.now();
+          DateTime today = DateTime.now();
+          DateTime thirteenThirty = DateTime(today.year, today.month, today.day, 13, 30);
           DateTime? upcomingDate; 
-        
           for (var allocation in widget.userAlloc) {
+            
             DateTime allocDate = DateTime.parse(allocation['date']);
-            if (allocDate.isAfter(today) &&
+            if (allocDate.isAfter(thirteenThirty) &&
                 (upcomingDate == null || allocDate.isBefore(upcomingDate))) {
               upcomingDate = allocDate;
             }
           }
-          DateTime displayDate = upcomingDate ?? today;
+          DateTime? displayDate = upcomingDate;
             return Padding(
               
               padding: const EdgeInsets.all(20.0),
@@ -209,7 +258,7 @@ void countFridays() {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        padding: EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(20),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
@@ -223,24 +272,24 @@ void countFridays() {
                             ),
                             Text(
                               widget.userPrn,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.normal,
                                 fontFamily: 'Raleway',
                               ),
                             ),
-                            SizedBox(height: 20),
+                            const SizedBox(height: 20),
                             Container(
-                              padding: EdgeInsets.all(10),
+                              padding: const EdgeInsets.all(10),
                               width: double.infinity,
                               decoration: BoxDecoration(
-                                color: Colors.grey[400],
+                                color: const Color(0xFFF2F2F2),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
+                                  const Text(
                                     'Department',
                                     style: TextStyle(
                                       fontSize: 24,
@@ -250,7 +299,7 @@ void countFridays() {
                                   ),
                                   Text(
                                     widget.userDept,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.normal,
                                       fontFamily: 'Raleway',
@@ -259,7 +308,7 @@ void countFridays() {
                                 ],
                               ),
                             ),
-                            SizedBox(height: 20),
+                            const SizedBox(height: 20),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -268,13 +317,13 @@ void countFridays() {
                                   child: Container(
                                     width: double.infinity,
                                     decoration: BoxDecoration(
-                                      color: Colors.grey[400],
+                                      color: const Color(0xFFF2F2F2),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Padding(
+                                        const Padding(
                                           padding: EdgeInsets.only(left: 15,top: 5,right: 0,bottom: 0),
                                           child: Text(
                                             'Number of Duties',
@@ -290,7 +339,7 @@ void countFridays() {
                                           padding: EdgeInsets.only(left: 15,top: 0,right: 0,bottom: 5),
                                           child: Text(
                                             '${widget.userAlloc.length}',
-                                            style: TextStyle(
+                                            style: const TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.normal,
                                               fontFamily: 'Raleway',
@@ -302,18 +351,18 @@ void countFridays() {
                                     ),
                                   ),
                                 ),
-                                SizedBox(width: 10),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   flex: 2,
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      color: Colors.grey[400],
+                                      color: const Color(0xFFF2F2F2),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Padding(
+                                       const Padding(
                                           padding: EdgeInsets.only(left: 15,top: 5,right: 0,bottom: 0),
                                           child: Text(
                                             'Friday duties',
@@ -347,7 +396,8 @@ void countFridays() {
                             const SizedBox(height: 20),
 
                             Text(
-                                'upcoming invigilation duty date : ${DateFormat('dd-MM-yyyy').format(displayDate).toString().split(' ')[0]}', 
+                                // 'upcoming invigilation duty date : ${DateFormat('dd-MM-yyyy').format(displayDate).toString().split(' ')[0]}', 
+                                 'Next Duty: ${displayDate==null?'None':displayDate.toString().split(' ')[0]}',
                                 style: const TextStyle(
                                   fontSize: 12,fontWeight: FontWeight.bold,
                                 ),
@@ -356,7 +406,7 @@ void countFridays() {
                         ),
                       ),
 
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 5),
                       
                       const Text(
                         'Schedule',
@@ -366,57 +416,59 @@ void countFridays() {
                           fontFamily: 'Raleway',
                         ),
                       ),
-                      SizedBox(height: 20),
-
+                      const SizedBox(height: 20),
+                      
                       SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: <Widget>[
-                            for (var i = 0; i < widget.userAlloc.length; i++)
-                              Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 8), // Adjust the horizontal spacing as needed
-                                child: dateButton(
-                                  widget.userAlloc[i]['date'].split('-').last, // Display only the day part
-                                  getDayOfWeek(widget.userAlloc[i]['date']), // Function to get day of week
-                                  true, // Assuming this value should always be true
-                                  () {
-                                    setState(() {
-                                      showInvigilationInfo = true;
-                                      selectedDateIndex = i; // Update the selected date index
-                                    });
-                                  },
-                                ),
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: <Widget>[
+                          for (var i = 0; i < widget.userAlloc.length; i++)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8), // Adjust the horizontal spacing as needed
+                              child: dateButton(
+                                widget.userAlloc[i]['date'].split('-').last, // Display only the day part
+                                widget.userAlloc[i]['day'].substring(0, 3), // Function to get day of week
+                                true, // Assuming this value should always be true
+                                () {
+                                  setState(() {
+                                    showInvigilationInfo = true;
+                                    selectedDateIndex = i;
+                                    fetchInitialAttendanceStatus(selectedDateIndex);
+                                    initializeCardVisibility(selectedDateIndex);
+                                    grabTeacherNames(selectedDateIndex);
+                                  });
+                                },
                               ),
-                          ],
-                        ),
+                            ),
+                        ],
                       ),
+                    ),
+
                   
-                      SizedBox(height: 30),
+                      const SizedBox(height: 30),
 
                       if (showInvigilationInfo) ...[
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  showInvigilationInfo = false;
-                                });
-                              },
-                              child: Container(
-                                padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFA0E4C3),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  'See Alerts',
-                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black, fontFamily: 'Raleway'),
-                                ),
-                              ),
+                          onTap: () {
+                            setState(() {
+                              showInvigilationInfo = false;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                            decoration: BoxDecoration(
+                              color:const Color.fromARGB(230, 111, 194, 239),borderRadius: BorderRadius.circular(10),
                             ),
-
+                            child: const Text(
+                              'See Alerts',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black, fontFamily: 'Raleway'),
+                            ),
+                          ),
+                        ),
                             
                             TextButton(
                               onPressed: () {
@@ -425,17 +477,19 @@ void countFridays() {
                                   builder: (BuildContext context) {
                                     String? selectedName;
                                     return AlertDialog(
-                                      title: Text("Change this Duty"),
+                                      title: const Text("Change this Duty"),
                                       content: StatefulBuilder(
                                         builder: (BuildContext context, StateSetter setState) {
                                           return Column(
                                             mainAxisSize: MainAxisSize.min,
                                             children: <Widget>[
-                                              Text("Your exchange duty message goes here."),
-                                              SizedBox(height: 20), // Add spacing between message and dropdown
+                                              const Text("Your exchange duty message goes here."),
+
+                                              const SizedBox(height: 20), // Add spacing between message and dropdown
+
                                               DropdownButtonFormField<String>(
                                                 value: selectedName,
-                                                items:widget.teacherNames.map((String value) {
+                                                items:teacherNames.map((String value) {
                                                   return DropdownMenuItem<String>(
                                                     value: value,
                                                     child: Text(value),
@@ -446,7 +500,7 @@ void countFridays() {
                                                     selectedName = newValue;
                                                   });
                                                 },
-                                                decoration: InputDecoration(
+                                                decoration: const InputDecoration(
                                                   labelText: 'Select Teacher',
                                                   border: OutlineInputBorder(),
                                                 ),
@@ -460,7 +514,7 @@ void countFridays() {
                                           onPressed: () {
                                             Navigator.of(context).pop();
                                           },
-                                          child: Text("Cancel"),
+                                          child: const Text("Cancel"),
                                         ),
                                         TextButton(
                                           onPressed: () {
@@ -469,16 +523,36 @@ void countFridays() {
                                               http.post(
                                                 Uri.parse('http://127.0.0.1:8000/dutychange/'),
                                                 body: {
-                                                  'exchange_for': selectedName,
-                                                  'exchange_by': widget.userPrn,
-                                                  'friday_duty':'0',
-                                                  'request_date':widget.userAlloc[selectedDateIndex]['date'],
+                                                  'exchange_for':  widget.userPrn,
+                                                  'exchange_by': selectedName,
+                                                  'exam_id':widget.userAlloc[selectedDateIndex]['exam_id'].toString(),
+                                                  // 'request_date':widget.userAlloc[selectedDateIndex]['date'],
                                                 }
                                               );
                                             }
                                             Navigator.of(context).pop();
+                                            if (!mounted) return;
+
+                                          showDialog(
+                                            context: context,
+                                            builder: (BuildContext context) {
+                                              return AlertDialog(
+                                                title: const Text('Success'),
+                                                content: const Text('Exchange request has been sent.'),
+                                                actions: <Widget>[
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      Navigator.of(context).pop(); // Close the dialog
+                                                    },
+                                                    child: const Text('OK'),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                              
                                           },
-                                          child: Text("OK"),
+                                          child: const Text("OK"),
                                         ),
                                       ],
                                     );
@@ -487,12 +561,12 @@ void countFridays() {
                               },
                               style: TextButton.styleFrom(
                                 backgroundColor: Colors.yellow,
-                                padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
-                              child: Text(
+                              child: const Text(
                                 'Change this Duty',
                                 style: TextStyle(
                                   fontSize: 14,
@@ -502,15 +576,8 @@ void countFridays() {
                                 ),
                               ),
                             ),
-
-
-
-
-
                           ],
                         ),
-
-                          
 
                         const SizedBox(height: 10),
 
@@ -519,7 +586,7 @@ void countFridays() {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          padding: EdgeInsets.all(20),
+                          padding: const EdgeInsets.all(20),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
@@ -527,19 +594,41 @@ void countFridays() {
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[400],borderRadius: BorderRadius.circular(10),
+                                  color: const Color(0xFFF2F2F2),borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const Text(
                                       'Room Name',
-                                      style: TextStyle(fontSize: 14,fontWeight: FontWeight.bold),
+                                      style: TextStyle(fontSize: 18,fontWeight: FontWeight.bold),
                                     ),
                                     Text(
-                                      widget.userAlloc[selectedDateIndex]['room_name'], 
-                                      style: TextStyle(fontSize: 18),
+                                      widget.userAlloc[selectedDateIndex]['room_name'] ?? '' , 
+                                      style: const TextStyle(fontSize: 18),
                                     ),
+                                    
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF2F2F2),borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Slot',
+                                      style: TextStyle(fontSize: 18,fontWeight: FontWeight.bold),
+                                    ),
+                                    Text(
+                                      widget.userAlloc[selectedDateIndex]['slot'] ?? '' , 
+                                      style: const TextStyle(fontSize: 18),
+                                    ),
+                                    
                                   ],
                                 ),
                               ),
@@ -550,80 +639,45 @@ void countFridays() {
                                 'Mark Attendance', 
                                 style: TextStyle(fontSize: 18,fontWeight: FontWeight.bold),
                               ),
-                           
+                              
                               ListView.builder(
                               shrinkWrap: true,
                               itemCount: widget.userAlloc[selectedDateIndex]['student_prns'].length,
                               itemBuilder: (BuildContext context, int index) {
                                 var prn = widget.userAlloc[selectedDateIndex]['student_prns'][index];
-                                return Visibility(
-                                  visible: cardVisibility[index], // Check visibility
-                                  child: Card(
-                                    elevation: 3,
-                                    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Row(
-                                        children: [
-                                          Text(prn, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.normal)),
-                                          const SizedBox(width: 100),
-                                          TextButton(
-                                            onPressed: () {
-                                              markAttendance(prn, 1);
-                                              setState(() {
-                                                cardVisibility[index] = false; // Hide the card
-                                              });
-                                            },
-                                            style: ButtonStyle(
-                                              backgroundColor: MaterialStateProperty.all<Color>(Color(0xFF74D4A6)),
-                                              foregroundColor: MaterialStateProperty.all<Color>(Colors.white),
-                                              minimumSize: MaterialStateProperty.all<Size>(Size(35, 25)),
-                                              padding: MaterialStateProperty.all<EdgeInsetsGeometry>(EdgeInsets.symmetric(horizontal: 8)),
-                                              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                                                RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(6),
-                                                ),
-                                              ),
-                                            ),
-                                            child: Text('Present', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                          ),
-                                          SizedBox(width: 5),
-                                          TextButton(
-                                            onPressed: () {
-                                              markAttendance(prn, 0);
-                                              setState(() {
-                                                cardVisibility[index] = false; // Hide the card
-                                              });
-                                            },
-                                            style: ButtonStyle(
-                                              backgroundColor: MaterialStateProperty.all<Color>(Color(0xFFE46D6D)),
-                                              foregroundColor: MaterialStateProperty.all<Color>(Colors.white),
-                                              minimumSize: MaterialStateProperty.all<Size>(Size(35, 25)),
-                                              padding: MaterialStateProperty.all<EdgeInsetsGeometry>(EdgeInsets.symmetric(horizontal: 8)),
-                                              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                                                RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(6),
-                                                ),
-                                              ),
-                                            ),
-                                            child: Text('Absent', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
 
-   
-                              
+                                return Card(
+                                  elevation: 3,
+                                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(prn, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.normal)),
+                                        Switch(
+                                          value: attendanceStatus.isNotEmpty && index < attendanceStatus.length ? attendanceStatus[index] : false,
+                                          onChanged: (bool value) {
+                                            markAttendance(prn, value ? 1 : 0,widget.userAlloc[selectedDateIndex]['exam_id']);
+                                            setState(() {
+                                              attendanceStatus[index] = value;
+                                            });
+                                          },
+                                          activeColor: const Color(0xFF74D4A6), // Color when switch is on (Present)
+                                          inactiveThumbColor: const Color(0xFFE46D6D), // Color when switch is off (Absent), // Color when switch is off (Absent)
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
                             ],
                           ),
                         ),
 
                       ] else ...[
-
+                        if(widget.userNotify.isNotEmpty)
                         Container(
                         decoration: BoxDecoration(
                             color: Colors.white,borderRadius: BorderRadius.circular(8),
@@ -646,7 +700,7 @@ void countFridays() {
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 10), 
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[400],borderRadius: BorderRadius.circular(8),
+                                  color: const Color(0xFFF2F2F2),borderRadius: BorderRadius.circular(8),
                                 ),  
                                 padding: const EdgeInsets.all(10),
                                 child: NotificationButton(
@@ -661,7 +715,7 @@ void countFridays() {
                     ),
 
                         const SizedBox(height: 20),
-
+                        
                         Container(
                         decoration: BoxDecoration(
                             color: Colors.white,borderRadius: BorderRadius.circular(8),
@@ -690,7 +744,7 @@ void countFridays() {
                                 
                                return Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[400],
+                                  color: const Color(0xFFF2F2F2),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 margin: const EdgeInsets.only(bottom: 8),
@@ -701,12 +755,12 @@ void countFridays() {
                                 children: [
                                   Text(
                                     displayText,
-                                    style: TextStyle(fontSize: 16),
+                                    style: const TextStyle(fontSize: 16),
                                     textAlign: TextAlign.start,
                                   ),
                                   Text(
                                     roomName,
-                                    style: TextStyle(fontSize: 16),
+                                    style: const TextStyle(fontSize: 16),
                                     textAlign: TextAlign.end,
                                   ),
                                 ],
@@ -721,7 +775,13 @@ void countFridays() {
 
 
                     ),
+
+
                     const SizedBox(height: 20),
+
+                    
+                    if ( widget.exchangeRequest.isNotEmpty)
+                    
                     Container(
                         decoration: BoxDecoration(
                             color: Colors.white,borderRadius: BorderRadius.circular(8),
@@ -739,63 +799,143 @@ void countFridays() {
                           const SizedBox(height: 20),
                           
                         Visibility(
-  visible: _isVisible,
-child: Container(
-  decoration: BoxDecoration(
-    color: Colors.grey[400],
-    borderRadius: BorderRadius.circular(8),
-  ),
-  margin: const EdgeInsets.only(bottom: 8),
-  padding: const EdgeInsets.all(8),
-  width: double.infinity,
-  child: Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    children: [
-      Expanded(
-        child: Text(
-          widget.exchangeRequest,
-          style: TextStyle(fontSize: 16),
-          textAlign: TextAlign.start,
-        ),
-      ),
-      if (widget.exchangeRequest != '') // Conditionally show buttons if widget.exchangeRequest is not empty
-        SizedBox(width: 8), // Add some space between text and buttons
-        Visibility(
-          visible: widget.exchangeRequest != '',
-          child: ElevatedButton(
-            onPressed: () {
-              http.post(
-                Uri.parse('http://127.0.0.1:8000/exchange_accept/'),
-                body: {
-                  'exchange_date': widget.exchangeRequest,
-                  'exchange_for': widget.userPrn,
-                  'exchange_by':'0',
-                }
-              );
-              setState(() {
-                _isVisible = false; // Set visibility to false to hide the container
-              });
-            },
-            child: Text('Accept'),
-          ),
-        ),
-        SizedBox(width: 8), // Add some space between buttons
-        Visibility(
-          visible: widget.exchangeRequest != '',
-          child: ElevatedButton(
-            onPressed: () {
-              // Add logic for reject button
-              setState(() {
-                _isVisible = false; // Set visibility to false to hide the container
-              });
-            },
-            child: Text('Reject'),
-          ),
-        ),
-      ],
-    ),
-  ),
-),
+                        visible: _isVisible,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF2F2F2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(10),
+                          width: double.infinity,
+                          child: Column(
+                            children: List.generate(widget.exchangeRequest.length, (index) {
+                              var exchangeItem = widget.exchangeRequest[index];
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        'Exchange request from ${exchangeItem[5]} on ${exchangeItem[3]} and at ${exchangeItem[4]}',
+                                        style: const TextStyle(fontSize: 16),
+                                        textAlign: TextAlign.start,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8), // Add some space between text and buttons
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        try {
+                                          final response = await http.post(
+                                            Uri.parse('http://127.0.0.1:8000/exchange_accept/'),
+                                            body: {
+                                              'user_prn': widget.userPrn,
+                                              'exchange_for': exchangeItem[1],
+                                              'exam_id': exchangeItem[0].toString(), // Ensure exam_id is converted to String if it's not already
+                                              'friday_duty': exchangeItem[2],
+                                            },
+                                          );
+
+                                          if (response.statusCode == 200) {
+                                            // Handle successful response
+                                           
+                                             setState(() {
+                                            _isVisible = false; // Set visibility to false to hide the container
+                                          });
+                                          if (!mounted) return;
+
+                                          showDialog(
+                                            context: context,
+                                            builder: (BuildContext context) {
+                                              return AlertDialog(
+                                                title: const Text('Success'),
+                                                content: const Text('Exchange request accepted successfully.'),
+                                                actions: <Widget>[
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      Navigator.of(context).pop(); // Close the dialog
+                                                    },
+                                                    child: const Text('OK'),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                          } else {
+                                            // Handle HTTP error response
+                                            
+                                            // Optionally, show a snackbar or toast with error message
+                                          }
+                                        } catch (e) {
+                                          // Handle network or server errors
+                                         
+                                          // Optionally, show a snackbar or toast with error message
+                                        }
+                                      },
+                                      child: const Text('Accept'),
+                                    ),
+                                    const SizedBox(width: 8), // Add some space between buttons
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        try {
+                                          final response = await http.post(
+                                            Uri.parse('http://127.0.0.1:8000/exchange_reject/'),
+                                            body: {
+                                              'user_prn': widget.userPrn,
+                                              'exchange_for': exchangeItem[1],
+                                              'exam_id': exchangeItem[0].toString(), // Ensure exam_id is converted to String if it's not already
+                                              'friday_duty': exchangeItem[2],
+                                            },
+                                          );
+
+                                          if (response.statusCode == 200) {
+                                            setState(() {
+                                              _isVisible = false; // Set visibility to false to hide the container
+                                            });
+                                            if (!mounted) return;
+
+                                          showDialog(
+                                            context: context,
+                                            builder: (BuildContext context) {
+                                              return AlertDialog(
+                                                title: const Text('Rejected'),
+                                                content: const Text('Exchange request rejected.'),
+                                                actions: <Widget>[
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      Navigator.of(context).pop(); // Close the dialog
+                                                    },
+                                                    child: const Text('OK'),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                          } else {
+                                           
+                                          }
+                                        } catch (e) {
+                                          // Handle network or server errors
+                                          // Optionally, show a snackbar or toast with error message
+                                        }
+                                      },
+                                      child: const Text('Reject'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                      )
+
 
 
                         ],
@@ -814,7 +954,7 @@ child: Container(
 
  Widget dateButton(
     String date, String day, bool isHighlighted, Function() onPressed) {
-  return Container(
+  return Padding(padding: const EdgeInsets.fromLTRB(0, 0, 10,0),child: Container(
     decoration: isHighlighted
         ? BoxDecoration(
             color: Colors.white,borderRadius: BorderRadius.circular(10),
@@ -828,7 +968,7 @@ child: Container(
   onPressed: onPressed,
   style: TextButton.styleFrom(
     padding: const EdgeInsets.only(top:10,bottom:10,left: 15, right: 15),
-    minimumSize: const Size(20, 30),
+    minimumSize: const Size(100,105),
     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     backgroundColor: isHighlighted ? const Color(0xFFA0E4C3) : null,
     shape: RoundedRectangleBorder(
@@ -841,13 +981,14 @@ child: Container(
       Text(
         date,
         style: const TextStyle(
-          color: Colors.black,fontSize: 25,
+          color: Colors.black,fontSize: 30,
+          fontWeight: FontWeight.w500,
         ),
       ),
       Text(
         day,
         style: const TextStyle(
-          color: Colors.black,fontSize: 10,
+          color: Colors.black,fontSize: 14,
         ),
       ),
     ],
@@ -855,6 +996,7 @@ child: Container(
 ),
       ],
     ),
+  )
   );
 }
 }
@@ -889,9 +1031,9 @@ class NotificationButton extends StatelessWidget {
               context: context,
               builder: (BuildContext context) {
                 return AlertDialog(
-                  title: const Text('Reminder'),
+                  title: const Text('Alert'),
                   content: Text(
-                    "This is a reminder for $message",
+                    message,
                   ),
                   actions: [
                     TextButton(
@@ -915,7 +1057,7 @@ class NotificationButton extends StatelessWidget {
   }
 }
 
-String getDayOfWeek(String dateStr) {
-  DateTime date = DateTime.parse(dateStr);
-  return DateFormat('E').format(date); // 'E' represents the abbreviated day of week (e.g., "Mon", "Tue")
-}
+// String getDayOfWeek(String dateStr) {
+//   DateTime date = DateTime.parse(dateStr);
+//   return DateFormat('E').format(date); // 'E' represents the abbreviated day of week (e.g., "Mon", "Tue")
+// }

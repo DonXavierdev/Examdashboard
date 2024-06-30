@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'login_page.dart';
 import 'dart:async';
-import 'package:intl/intl.dart';
 // import 'dart:developer';
 void main() {
   runApp(MaterialApp(
@@ -9,7 +8,7 @@ void main() {
     home: Builder(
       builder: (BuildContext context) {
         return const StudentDashboard(
-          userType: '',userDept: '',userName: '',userPrn: '',userNotify:[],userAlloc: [],
+          userType: '',userDept: '',userName: '',userPrn: '',userLevel: '',userBatch: '',userNotify:[],userAlloc: [],
           );
       },
     ),
@@ -76,6 +75,8 @@ class StudentDashboard extends StatefulWidget {
   final String userDept;
   final String userName;
   final String userPrn;
+  final String userLevel;
+  final String userBatch;
   final List<String> userNotify;
   final  List<Map<String, dynamic>> userAlloc;
   
@@ -87,6 +88,8 @@ class StudentDashboard extends StatefulWidget {
     required this.userDept,
     required this.userName,
     required this.userPrn,
+    required this.userBatch,
+    required this.userLevel,
     required this.userNotify,
     required this.userAlloc,
   }) : super(key: key);
@@ -102,13 +105,13 @@ class StudentDashboardState extends State<StudentDashboard> {
   @override
   void initState() {
     super.initState();
-    _loadingFuture = Future.delayed(const Duration(seconds: 2)); // Simulating loading for 2 seconds
+    _loadingFuture = Future.delayed(const Duration(seconds: 0)); // Simulating loading for 2 seconds
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-    backgroundColor: Colors.grey[400],
+    backgroundColor: const Color(0xFFF2F2F2),
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text(
@@ -129,7 +132,7 @@ class StudentDashboardState extends State<StudentDashboard> {
                 onSelected: (value) {
                   if (value == 'logout') {
                     Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (context) => LoginPage()),(route) => false,
+                      MaterialPageRoute(builder: (context) => const LoginPage()),(route) => false,
                     );
                   }
                 },
@@ -143,16 +146,17 @@ class StudentDashboardState extends State<StudentDashboard> {
         builder: (context, snapshot) {
           double containerWidth = MediaQuery.of(context).size.width * 1;
           DateTime today = DateTime.now();
+          DateTime thirteenThirty = DateTime(today.year, today.month, today.day, 13, 30);
           DateTime? upcomingDate; 
         
           for (var allocation in widget.userAlloc) {
             DateTime allocDate = DateTime.parse(allocation['date']);
-            if (allocDate.isAfter(today) &&
+            if (allocDate.isAfter(thirteenThirty) &&
                 (upcomingDate == null || allocDate.isBefore(upcomingDate))) {
               upcomingDate = allocDate;
             }
           }
-          DateTime displayDate = upcomingDate ?? today;
+          DateTime? displayDate = upcomingDate;
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const CustomLoadingScreen();
           } else {
@@ -188,7 +192,7 @@ class StudentDashboardState extends State<StudentDashboard> {
                           Container(
                             width: double.infinity, 
                             decoration: BoxDecoration(
-                              color: Colors.grey[400],borderRadius: BorderRadius.circular(10), 
+                              color: const Color(0xFFF2F2F2),borderRadius: BorderRadius.circular(10), 
                             ),
                             padding: const EdgeInsets.all(10), 
                             child: Column(
@@ -220,16 +224,16 @@ class StudentDashboardState extends State<StudentDashboard> {
                               child: Container(
                                 width: double.infinity,
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[400], borderRadius: BorderRadius.circular(10), 
+                                  color: const Color(0xFFF2F2F2), borderRadius: BorderRadius.circular(10), 
                                 ),
-                                child: const Column(
+                                child:  Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                  Padding(
+                                  const Padding(
                                       padding: EdgeInsets.only(left: 15,top: 5,right: 0,bottom: 0,
                                       ), 
                                       child: Text(
-                                        'Semester',
+                                        'Level',
                                         style: TextStyle(
                                           fontSize: 18,fontWeight: FontWeight.bold,fontFamily: 'Raleway',color: Colors.black, 
                                         ),
@@ -237,11 +241,11 @@ class StudentDashboardState extends State<StudentDashboard> {
                                     ),
 
                                     Padding(
-                                      padding: EdgeInsets.only(left: 15,top: 0,right: 0,bottom: 5,
+                                      padding: const EdgeInsets.only(left: 15,top: 0,right: 0,bottom: 5,
                                       ), 
                                       child: Text(
-                                        '4',
-                                        style: TextStyle(
+                                        widget.userLevel,
+                                        style: const TextStyle(
                                           fontSize: 18,fontWeight: FontWeight.normal,fontFamily: 'Raleway',color: Colors.black, 
                                         ),
                                       ),
@@ -255,27 +259,27 @@ class StudentDashboardState extends State<StudentDashboard> {
                               flex: 2,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[400],borderRadius: BorderRadius.circular(10), 
+                                  color: const Color(0xFFF2F2F2),borderRadius: BorderRadius.circular(10), 
                                 ),
-                                child: const Column(
+                                child:  Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Padding(
+                                    const Padding(
                                       padding: EdgeInsets.only(left: 15,top: 5,right: 0,bottom: 0,
                                       ), 
                                       child: Text(
-                                        'CGPA',
+                                        'Batch',
                                         style: TextStyle(
                                           fontSize: 18,fontWeight: FontWeight.bold,fontFamily: 'Raleway',color: Colors.black, 
                                         ),
                                       ),
                                     ),
                                     Padding(
-                                      padding: EdgeInsets.only(left: 15,top: 0,right: 0,bottom:5,
+                                      padding: const EdgeInsets.only(left: 15,top: 0,right: 0,bottom:5,
                                       ), 
                                       child: Text(
-                                        '6.87',
-                                        style: TextStyle(
+                                        widget.userBatch,
+                                        style: const TextStyle(
                                           fontSize: 18,fontWeight: FontWeight.normal,fontFamily: 'Raleway',color: Colors.black, 
                                         ),
                                       ),
@@ -290,7 +294,7 @@ class StudentDashboardState extends State<StudentDashboard> {
                           const SizedBox(height: 15),
 
                               Text(
-                                'upcoming exam date: ${displayDate.toString().split(' ')[0]}', 
+                                'Next Exam: ${displayDate==null?'None':displayDate.toString().split(' ')[0]}', 
                                 style: const TextStyle(
                                   fontSize: 12,fontWeight: FontWeight.bold,fontFamily: 'Raleway',
                                 ),
@@ -308,16 +312,14 @@ class StudentDashboardState extends State<StudentDashboard> {
                         fontSize: 18,fontWeight: FontWeight.bold,fontFamily: 'Raleway',
                       ),
                     ),
-
-                    const SizedBox(height: 20),
-                    
+                    const SizedBox(height: 5),
                     Row(
                         
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: <Widget>[
                         for (var i = 0; i < widget.userAlloc.length; i++)
                           dateButton(
-                            widget.userAlloc[i]['date'].split('-').last,getDayOfWeek(widget.userAlloc[i]['date']), 
+                            widget.userAlloc[i]['date'].split('-').last,widget.userAlloc[i]['day'].substring(0, 3), 
                             true,
                             () {
                               setState(() {
@@ -341,7 +343,7 @@ class StudentDashboardState extends State<StudentDashboard> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                             decoration: BoxDecoration(
-                              color:const Color(0xFFA0E4C3),borderRadius: BorderRadius.circular(8),
+                              color:Color.fromARGB(230, 111, 194, 239),borderRadius: BorderRadius.circular(10),
                             ),
                             child: const Text(
                               'See Alerts',
@@ -364,7 +366,7 @@ class StudentDashboardState extends State<StudentDashboard> {
                                 Container(
                                   width: double.infinity,
                             decoration: BoxDecoration(
-                              color: Colors.grey[400],borderRadius: BorderRadius.circular(10),
+                              color: const Color(0xFFF2F2F2),borderRadius: BorderRadius.circular(10),
                                                     ), 
                             padding: const EdgeInsets.all(10),
                             child: Column(
@@ -387,7 +389,7 @@ class StudentDashboardState extends State<StudentDashboard> {
                           Container(
                             width: double.infinity,
                       decoration: BoxDecoration(
-                        color: Colors.grey[400],borderRadius: BorderRadius.circular(10),
+                        color: const Color(0xFFF2F2F2),borderRadius: BorderRadius.circular(10),
                                               ), 
                       padding: const EdgeInsets.all(10), 
                       child: Column(
@@ -410,7 +412,7 @@ class StudentDashboardState extends State<StudentDashboard> {
                           Container(
                             width: double.infinity,
                       decoration: BoxDecoration(
-                        color: Colors.grey[400],borderRadius: BorderRadius.circular(10),
+                        color: const Color(0xFFF2F2F2),borderRadius: BorderRadius.circular(10),
                                               ), 
                       padding: const EdgeInsets.all(10), 
                       child: Column(
@@ -442,7 +444,7 @@ class StudentDashboardState extends State<StudentDashboard> {
                           Container(
                             width:containerWidth,
                       decoration: BoxDecoration(
-                        color: Colors.grey[400],borderRadius: BorderRadius.circular(10),
+                        color: const Color(0xFFF2F2F2),borderRadius: BorderRadius.circular(10),
                       ),
                       padding: EdgeInsets.only(left:containerWidth * 0.15,right: containerWidth * 0.1), 
                       child: Center(
@@ -455,6 +457,7 @@ class StudentDashboardState extends State<StudentDashboard> {
                               rows: widget.userAlloc[selectedDateIndex]['room_rows'],
                               studentRow: widget.userAlloc[selectedDateIndex]['student_row'],
                               studentCol: widget.userAlloc[selectedDateIndex]['student_col'],
+                              studentSeat: widget.userAlloc[selectedDateIndex]['student_seat'],
                             ),
                             const SizedBox(height: 20),
                           ],
@@ -468,7 +471,7 @@ class StudentDashboardState extends State<StudentDashboard> {
                     ]   
 
                     else ...[
-
+                       if(widget.userNotify.isNotEmpty)
                       Container(
                         decoration: BoxDecoration(
                             color: Colors.white,borderRadius: BorderRadius.circular(8),
@@ -484,6 +487,7 @@ class StudentDashboardState extends State<StudentDashboard> {
                             ),
                           ),
                           const SizedBox(height: 20),
+                         
                           ListView.builder(
                             shrinkWrap: true,
                             itemCount: widget.userNotify.length,
@@ -491,7 +495,7 @@ class StudentDashboardState extends State<StudentDashboard> {
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 10), 
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[400],borderRadius: BorderRadius.circular(8),
+                                  color: const Color(0xFFF2F2F2),borderRadius: BorderRadius.circular(8),
                                 ),  
                                 padding: const EdgeInsets.all(10),
                                 child: NotificationButton(
@@ -501,86 +505,12 @@ class StudentDashboardState extends State<StudentDashboard> {
                               );
                             },
                           ),
+                          
                         ],
                       ),
                     ),
-
                       const SizedBox(height: 20),
-                      
-                      const Text(
-                        'Performance',
-                        style: TextStyle(
-                          fontSize: 18,fontWeight: FontWeight.bold,fontFamily: 'Raleway',
-                        ),
-                      ),
                       const SizedBox(height: 20),
-                      Container(
-                       decoration: BoxDecoration(
-                          color: Colors.white, borderRadius: BorderRadius.circular(10), 
-                        ),
-                      padding: const EdgeInsets.all(20),
-                      child:                   
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Performance',
-                            style: TextStyle(
-                              fontSize: 18,fontWeight: FontWeight.bold,fontFamily: 'Raleway',
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          const Row(
-                            children: [
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  'Semester 1 | CGPA 6.87',
-                                  style: TextStyle(
-                                    fontSize: 14,fontWeight: FontWeight.bold,fontFamily: 'Raleway',
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          DataTable(
-                            columnSpacing: 20,
-                            columns: const <DataColumn>[
-                              DataColumn(label: Text('Course')),
-                              DataColumn(label: Text('Grade')),
-                              DataColumn(label: Text('SCPA')),
-                            ],
-                            rows: sampleData
-                                .map(
-                                  (datas) => DataRow(
-                                    cells: [
-                                      DataCell(
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(vertical: 0),
-                                          child: Text(datas[0]),
-                                        ),
-                                      ),
-                                      DataCell(
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          child: Text(datas[1]),
-                                        ),
-                                      ),
-                                      DataCell(
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          child: Text(datas[2]),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ],
-                      ),
-                    )
-
                     ],
                   ],
                 ),
@@ -595,7 +525,7 @@ class StudentDashboardState extends State<StudentDashboard> {
 
 Widget dateButton(
     String date, String day, bool isHighlighted, Function() onPressed) {
-  return Container(
+  return Padding(padding: EdgeInsets.fromLTRB(0, 0, 10,0),child: Container(
     decoration: isHighlighted
         ? BoxDecoration(
             color: Colors.white,borderRadius: BorderRadius.circular(10),
@@ -609,7 +539,7 @@ Widget dateButton(
   onPressed: onPressed,
   style: TextButton.styleFrom(
     padding: const EdgeInsets.only(top:10,bottom:10,left: 15, right: 15),
-    minimumSize: const Size(20, 30),
+    minimumSize: const Size(100,105),
     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     backgroundColor: isHighlighted ? const Color(0xFFA0E4C3) : null,
     shape: RoundedRectangleBorder(
@@ -622,13 +552,14 @@ Widget dateButton(
       Text(
         date,
         style: const TextStyle(
-          color: Colors.black,fontSize: 25,
+          color: Colors.black,fontSize: 30,
+          fontWeight: FontWeight.w500,
         ),
       ),
       Text(
         day,
         style: const TextStyle(
-          color: Colors.black,fontSize: 10,
+          color: Colors.black,fontSize: 14,
         ),
       ),
     ],
@@ -636,6 +567,7 @@ Widget dateButton(
 ),
       ],
     ),
+  )
   );
 }
 
@@ -669,9 +601,9 @@ class NotificationButton extends StatelessWidget {
               context: context,
               builder: (BuildContext context) {
                 return AlertDialog(
-                  title: const Text('Reminder'),
+                  title: const Text('Alert'),
                   content: Text(
-                    "This is a reminder for $message",
+                    message,
                   ),
                   actions: [
                     TextButton(
@@ -699,8 +631,9 @@ class BoxGrid extends StatelessWidget {
   final int columns;
   final int studentRow;
   final int studentCol;
+  final int studentSeat;
 
-  const BoxGrid({super.key, required this.rows, required this.columns ,required this.studentRow ,required this.studentCol});
+  const BoxGrid({super.key, required this.rows, required this.columns ,required this.studentRow ,required this.studentCol,required this.studentSeat});
 
   @override
   Widget build(BuildContext context) {
@@ -717,8 +650,8 @@ class BoxGrid extends StatelessWidget {
         if (columnIndex % 2 == 0) {
           return Row(
             children: [
-              Expanded(child: Box(rowIndex: rowIndex, columnIndex: columnIndex,studentRow:studentRow,studentCol:studentCol)),
-              Expanded(child: Box(rowIndex: rowIndex, columnIndex: columnIndex + 1,studentRow:studentRow,studentCol:studentCol)),
+              Expanded(child: Box(rowIndex: rowIndex, columnIndex: columnIndex,studentRow:studentRow,studentCol:studentCol,studentSeat:studentSeat)),
+              Expanded(child: Box(rowIndex: rowIndex, columnIndex: columnIndex + 1,studentRow:studentRow,studentCol:studentCol,studentSeat:studentSeat)),
             ],
           );
         } else {
@@ -734,12 +667,13 @@ class Box extends StatelessWidget {
   final int columnIndex;
   final int studentRow;
   final int studentCol;
+  final int studentSeat;
 
-  const Box({super.key, required this.rowIndex, required this.columnIndex,required this.studentRow,required this.studentCol});
+  const Box({super.key, required this.rowIndex, required this.columnIndex,required this.studentRow,required this.studentCol,required this.studentSeat});
 
   @override
   Widget build(BuildContext context) {
-    bool isGreen = rowIndex == studentRow && columnIndex  == studentCol; 
+    bool isGreen = rowIndex == studentRow && columnIndex  == (studentCol*2)+studentSeat; 
     return Container(
       decoration: BoxDecoration(
         border: Border.all(),
@@ -749,14 +683,8 @@ class Box extends StatelessWidget {
     );
   }
 }
-const List<List<String>> sampleData = [
-  ['CCRCP05 - Optimization teChniques', 'A', '6.89'],
-  ['COPCU70 - Fundamentals of Digital Science ', 'A', '4'],
-  ['Physics', 'B', '3'],
-  ['Computer Science', 'A', '3'],
-  ['English', 'C', '3'],
-];
-String getDayOfWeek(String dateStr) {
-  DateTime date = DateTime.parse(dateStr);
-  return DateFormat('E').format(date); // 'E' represents the abbreviated day of week (e.g., "Mon", "Tue")
-}
+
+// String getDayOfWeek(String dateStr) {
+//   DateTime date = DateTime.parse(dateStr);
+//   return DateFormat('E').format(date); // 'E' represents the abbreviated day of week (e.g., "Mon", "Tue")
+// }

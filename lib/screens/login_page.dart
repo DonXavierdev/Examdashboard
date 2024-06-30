@@ -58,14 +58,17 @@ class LoginPageState extends State<LoginPage> {
       String userName = data['name'];
       String userPrn = data['prn'];
       String userDept = data['department'];
+      String userLevel = '';
+      String userBatch = '';
       List<String> userNotify = List<String>.from(data['notification']);
       List<Map<String, dynamic>> userAlloc = [];
       if (userType == 'Student') {
         userAlloc = List<Map<String, dynamic>>.from(data['student_allocations']);
+        userLevel = data['level'];
+        userBatch = data['batch'];
       } else {
-        List<String> teacherNames = List<String>.from(data['teacher_names']);
         userAlloc = List<Map<String, dynamic>>.from(data['teacher_allocations']);
-        String exchangeRequest = data['exchangeRequest'] ?? '';
+        List<dynamic>exchangeRequest = data['exchangeRequest'] ?? '';
 
         Navigator.push(
           context,
@@ -77,7 +80,6 @@ class LoginPageState extends State<LoginPage> {
               userPrn: userPrn,
               userNotify: userNotify,
               userAlloc: userAlloc,
-              teacherNames: teacherNames,
               exchangeRequest:exchangeRequest,
             ),
           ),
@@ -95,11 +97,13 @@ class LoginPageState extends State<LoginPage> {
             userPrn: userPrn,
             userNotify: userNotify,
             userAlloc: userAlloc,
+            userLevel: userLevel,
+            userBatch: userBatch,
           ),
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Invalid username or password'),
       ));
     }
@@ -184,16 +188,17 @@ class LoginPageState extends State<LoginPage> {
                 ),
               ),
             
-              const Padding(
+              const Align(alignment: Alignment.bottomCenter, child: Padding(
                 padding: EdgeInsets.only(top: 20, bottom: 20),
                 child: Text(
-                  'Copyright 2024 St Pauls College Kalamassery',
+                  'Copyright 2024',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 10,
                     color: Colors.black,
                   ),
                 ),
+              ),
               ),
             ],
           ),
