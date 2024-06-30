@@ -1,5 +1,3 @@
-# Django settings for myproject project.
-
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -14,11 +12,11 @@ SECRET_KEY = 'django-insecure-ky=la+#9b1v2e%+s1gl(&24=g&zxin(r(^2b%m!1@3j(1l_ftg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-
+ALLOWED_HOSTS = ['*']
 
 # Application definition
-
 INSTALLED_APPS = [
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -26,8 +24,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'myapp',
-    'corsheaders',
-
 ]
 
 MIDDLEWARE = [
@@ -35,13 +31,11 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    
 ]
-CORS_ALLOW_ALL_ORIGINS = True  
 
 ROOT_URLCONF = 'myproject.urls'
 
@@ -67,28 +61,21 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 DATABASES = {
-    'online': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'exam_cell_data',
-        'USER': 'root',
-        'PASSWORD': '>8G}qMYVg+EJHI$Q',
-        'HOST': '34.100.212.63',
-        'PORT':'3306',
-        'OPTIONS': {
-            'ssl': {
-                'ca': 'server-ca.pem',
-                'cert': 'client-cert.pem',
-                'key': 'client-key.pem',
-            }
-        }
-    },
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.mysql',
+    #     'NAME': 'exam_cell_data',
+    #     'USER': 'root',
+    #     'PASSWORD': 'root',
+    #     'HOST': 'localhost',
+    #     'PORT': '3308',
+    # }
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'exam_cell_data',
         'USER': 'root',
         'PASSWORD': 'donxavier20123',
         'HOST': 'localhost',
-        'PORT':'3306',
+        'PORT': '3306',
     }
 }
 
@@ -126,10 +113,20 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-
-
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# CORS settings
+CORS_ALLOW_ALL_ORIGINS = True
+# or more specific
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:50239",
+#     "http://localhost:3000",
+# ]
+
+# CSRF settings
+# CSRF_TRUSTED_ORIGINS = [
+#     'http://localhost:50239',
+# ]

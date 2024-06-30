@@ -28,70 +28,147 @@ def execute_sql(sql, db_alias='default', args=None):
     # Committing the changes to the database
     connection.commit()
 
-@csrf_exempt
+
 def exchange_accept(request):
     if request.method == 'POST':
-        print('hello')
+        user_prn = request.POST.get('user_prn')
         exchange_for = request.POST.get('exchange_for')
-        exchange_by = request.POST.get('exchange_by')
-        exchange_date = request.POST.get('exchange_date')
-        print(exchange_date)
-        sql = "INSERT INTO teacher_allocations (teacher_id,exam_id,exam_date,slot,room_id) VALUES (%s, %s, %s, %s,%s)"
-        
-       
-        execute_sql(sql, args=(exchange_for, 73 , exchange_date,'Afternoon',1))
-        sql = "DELETE FROM pending_exchanges WHERE exchange_for = '%s'" % (exchange_for)
-        execute_sql(sql)
-
-
-        
-       
-        execute_sql(sql, args=(exchange_for, 73 , exchange_date,'Afternoon',1))
+        exam_id = request.POST.get('exam_id')
+        friday_duty = request.POST.get('friday_duty')
+        if friday_duty=='1':
+            friday_duty=1
+        else:
+            friday_duty=0
+        sql =" UPDATE exchange_requests SET approval_status = %s WHERE exam_id = %s AND exchange_for = %s AND exchange_by=%s"
+        execute_sql(sql, args=(1,exam_id,exchange_for,user_prn))
+        sql =" UPDATE teacher_allocations SET teacher_id = %s WHERE exam_id = %s AND teacher_id = %s"
+        execute_sql(sql, args=(user_prn,exam_id,exchange_for))
+        if friday_duty:
+            sql =" UPDATE teachers SET friday_duties = friday_duties-1 WHERE teacher_id = %s"
+            execute_sql(sql, args=(exchange_for))
+        else:
+            sql =" UPDATE teachers SET duties = duties-1 WHERE teacher_id = %s"
+            execute_sql(sql, args=(exchange_for))
+        sql =" UPDATE teacher_allocations SET teacher_id = %s WHERE exam_id = %s AND teacher_id = %s"
+        execute_sql(sql, args=(user_prn,exam_id,user_prn))
+        if friday_duty:
+            sql =" UPDATE teachers SET friday_duties = friday_duties+1 WHERE teacher_id = %s"
+            execute_sql(sql, args=(user_prn))
+        else:
+            sql =" UPDATE teachers SET duties = duties+1 WHERE teacher_id = %s"
+            execute_sql(sql, args=(user_prn))
+        sql = "INSERT INTO pending_exchanges (exchange_for, exchange_by,friday_duty) VALUES (%s, %s, %s)"
+        execute_sql(sql, args=(exchange_for,user_prn,friday_duty))
+        sql = f"select date from exam_data where exam_id = {exam_id}"
+        expiry_date = get_all_data(sql)[0][0]
+        day, month, year = expiry_date.strip('()').split('/')
+        expiry_date = f'{year}-{month}-{day}'
+        sql = "INSERT INTO teacher_notifications (teacher_id, content, expiry) VALUES (%s, %s, %s)"
+        content = f"Exchange Request has been accepted by {user_prn}"
+        execute_sql(sql, args=(exchange_for, content, expiry_date))
 
         return HttpResponse("Change accepted.", status=200)
     else:
         return HttpResponse("Method not allowed", status=405)
-@csrf_exempt
+    
+def exchange_reject(request):
+    if request.method == 'POST':
+        user_prn = request.POST.get('user_prn')
+        exchange_for = request.POST.get('exchange_for')
+        exam_id = request.POST.get('exam_id')
+        sql =" UPDATE exchange_requests SET approval_status = %s WHERE exam_id = %s AND exchange_for = %s AND exchange_by=%s"
+        execute_sql(sql, args=(0,exam_id,exchange_for,user_prn))
+        sql = f"select date from exam_data where exam_id = {exam_id}"
+        expiry_date = get_all_data(sql)[0][0]
+        day, month, year = expiry_date.strip('()').split('/')
+        expiry_date = f'{year}-{month}-{day}'
+        sql = "INSERT INTO teacher_notifications (teacher_id, content, expiry) VALUES (%s, %s, %s)"
+        content = 'Exchange Request has been rejected by {}'.format(user_prn)
+        execute_sql(sql, args=(exchange_for, content, expiry_date))
+        return HttpResponse("Change Not accepted.", status=200)
+    else:
+        return HttpResponse("Method not allowed", status=405)
 
 def dutychange(request):
     if request.method == 'POST':
-        print('hello')
         exchange_for = request.POST.get('exchange_for')
         exchange_by = request.POST.get('exchange_by')
-        friday_duty = request.POST.get('friday_duty')
-        request_date = request.POST.get('request_date')
-        print(exchange_by,exchange_for,friday_duty,request_date)
-        query = f"SELECT teacher_id FROM teachers WHERE name = '{exchange_for}'"
-        exchange_for = get_all_data(query)[0][0]
-        friday_duty = int(friday_duty)
-        sql = "INSERT INTO pending_exchanges (exchange_for, exchange_by, friday_duty, request_date) VALUES (%s, %s, %s, %s)"
+        exam_id = request.POST.get('exam_id')
+        # request_date = request.POST.get('request_date')
         
-       
-        execute_sql(sql, args=(exchange_for, exchange_by, friday_duty, request_date))
+        query = f"SELECT teacher_id FROM teachers WHERE name = '{exchange_by}'"
+        exchange_by = get_all_data(query)[0][0]
+        sql = "INSERT INTO exchange_requests (exchange_for, exchange_by,exam_id) VALUES (%s, %s, %s)"
+
+        execute_sql(sql, args=(exchange_for, exchange_by,exam_id))
 
         return HttpResponse("Change requested.", status=200)
     else:
         return HttpResponse("Method not allowed", status=405)
 
+def grab_teacher_names(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        user_id = data.get('user_id')
+        exam_id = data.get('exam_id')
+        exam_date = data.get('exam_date')
+       
+        query = f"""
+            SELECT name 
+            FROM teachers 
+            WHERE teacher_id NOT IN ('{user_id}', 'COE') 
+                AND available = 1 
+                AND teacher_id NOT IN (
+                SELECT exchange_by 
+                FROM exchange_requests 
+                WHERE exchange_for = '{user_id}' 
+                    AND     exam_id = {exam_id}
+                    AND approval_status = 1 OR approval_status IS NULL
+                ) 
+                AND teacher_id NOT IN (
+                SELECT teacher_id 
+                FROM teacher_allocations 
+                WHERE exam_date = '{exam_date}'
+                );
+        """
+        results = get_all_data(query)
+        teacher_names = [row[0] for row in results]
 
+        return JsonResponse({'teacher_names': teacher_names})
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=400)
 
-@csrf_exempt
-
-
-def attendance_view(request):
+def attendance_update(request):
     if request.method == 'POST':
         status = request.POST.get('status')
         prn = request.POST.get('prn')
-        print(prn,status)
-
+        exam_id = request.POST.get('exam_id')
+        query = f"UPDATE student_allocations SET attendance = {status} WHERE prn = '{prn}' AND exam_id = '{exam_id}'"
+        with connection.cursor() as cursor:
+            cursor.execute(query)
         return HttpResponse("Attendance marked successfully.", status=200)
     else:
         return HttpResponse("Method not allowed", status=405)
 
-@csrf_exempt
+def get_attendance_status(request):
+    data = json.loads(request.body)
+    prn = data.get('prn', [])
+    exam_id = data.get('exam_id')
+    print(exam_id)
+    status_list = []
+    try:
+        for i in prn:
+            query = f"SELECT attendance FROM student_allocations WHERE prn = '{i}' AND exam_id = {exam_id}" 
+            each_status = get_all_data(query)[0][0]
+            status_list.append(each_status)
+        return JsonResponse({'status': status_list}) 
+    except:
+        return JsonResponse({'status': None}, status=404)
+ 
+
 def login_view(request):
     if request.method == 'POST':
-        user_id = request.POST.get('username')
+        user_id = request.POST.get('username').upper()
         password = request.POST.get('password')    
         query = f"SELECT * FROM users WHERE user_id = '{user_id}'"    
         rows = get_all_data(query)
@@ -102,9 +179,11 @@ def login_view(request):
                 teacher = get_all_data(query)
                 teach_name = teacher[0][1]
                 teach_dep = teacher[0][2]
-                query = f"SELECT content FROM teacher_notifications WHERE teacher_id = '{user_id}'"
+                query = f" SELECT content FROM general_notifications UNION ALL SELECT content FROM teacher_notifications WHERE teacher_id = '{user_id}' "
                 teacher_notifies = get_all_data(query)            
-                query = f"SELECT * FROM teacher_allocations WHERE teacher_id = '{user_id}'"
+                print(teacher_notifies)
+                query = f"SELECT * FROM teacher_allocations WHERE teacher_id = '{user_id}' AND exam_id IN (SELECT exam_id FROM exam_data WHERE authorization = 1) ORDER BY STR_TO_DATE(exam_date, '%d/%m/%Y')"
+
                 teacher_allocations = get_all_data(query)
                 
                 # student_data = StudentAllocation.objects.all()
@@ -113,39 +192,54 @@ def login_view(request):
                 
                 for allocation in teacher_allocations:
                     query = f"SELECT * FROM rooms WHERE room_id = '{allocation[4]}'"
-                    room_data = get_all_data(query)   
-                    query = f"SELECT prn FROM student_allocations WHERE exam_date = '{allocation[2]}' AND room_id = '{allocation[4]}' ORDER BY prn ASC"
-
-                    student_prns = get_all_data(query) 
-                    student_prns = [student[0] for student in student_prns]     
+                    room_data = get_all_data(query)                       
+                    query = f"SELECT student_list FROM teacher_allocations WHERE teacher_id = '{allocation[0]}' AND exam_id = '{allocation[1]}'"
+                    student_prns = get_all_data(query)
+                    student_prns=student_prns[0][0]
+                    student_prns=json.loads(student_prns)
+                    query = f"SELECT day FROM exam_data WHERE exam_id = '{allocation[1]}'"
+                    day = get_all_data(query) [0][0]
                     allocation_data = {
                         'room_name': room_data[0][1],
                         'date': datetime.strptime(allocation[2], "%d/%m/%Y").strftime("%Y-%m-%d"),
-                        'student_prns': student_prns
+                        'exam_id':allocation[1],
+                        'student_prns': student_prns,
+                        'slot':allocation[3],
+                        'day':day,
                     }
                     teacher_allocations_data.append(allocation_data)
                 teacher_notify_msgs = [notify[0] for notify in teacher_notifies]
-                query = f"SELECT name FROM teachers"
-                teacher_names = get_all_data(query)
-                teacher_names = [name[0] for name in teacher_names]
-                query = f"SELECT request_date FROM pending_exchanges WHERE exchange_for = '{user_id}'"
+                query = f"SELECT exam_id,exchange_for FROM exchange_requests WHERE exchange_by = '{user_id}' AND approval_status IS NULL"
                 exchangeRequest = get_all_data(query)
-                if exchangeRequest:
-                    exchangeRequest =exchangeRequest[0][0]
-                    exchangeRequest = datetime.strptime(exchangeRequest, "%Y-%m-%d")
-                    exchangeRequest = exchangeRequest.strftime("%d/%m/%Y")
-                else:
-                    exchangeRequest = ''
-                
+                NewexchangeRequest = []        
+                if len(exchangeRequest) > 0:
+                    for i in exchangeRequest:
+                        query = f"SELECT day FROM exam_data where exam_id = '{i[0]}'"
+                        selectDay = get_all_data(query)[0][0]
+                        if selectDay == 'Friday':
+                            selectDay = ('1',)
+                        else:
+                            selectDay = ('0',)
+                        i+=selectDay
+                        query = f"SELECT date,slot FROM exam_data where exam_id = '{i[0]}'"
+                        selectDay = get_all_data(query)[0]
+                        i+=selectDay
+                        query = f"SELECT name FROM teachers where teacher_id = '{i[1]}'"
+                        selectDay = get_all_data(query)[0]
+                        i+=selectDay
+                        NewexchangeRequest.append(i)
+                    
+
+                        
+                print(NewexchangeRequest)
                 data = {
                     'name': teach_name,
-                    'prn': user_id,
+                    'prn': rows[0][0],
                     'department': teach_dep,
                     'user_type': user_type,
                     'notification': teacher_notify_msgs,
                     'teacher_allocations': teacher_allocations_data,
-                    'teacher_names':teacher_names,
-                    'exchangeRequest':exchangeRequest
+                    'exchangeRequest':tuple(NewexchangeRequest)
                 }
                 
                 return JsonResponse(data)
@@ -156,28 +250,51 @@ def login_view(request):
                 student = get_all_data(query)
                 stud_name = student[0][1]
                 stud_dep = student[0][3]
-                query = f"SELECT content FROM student_notifications WHERE prn = '{user_id}'"
+                stud_level = student[0][2]
+                stud_batch = student[0][4]
+                query = f"""
+                    SELECT content
+                    FROM exam_cell_data.student_notifications 
+                    WHERE 
+                        (prn = '{user_id}' 
+                        OR (level = '{stud_level }' AND batch = '{stud_batch}') 
+                        OR (program = '{stud_dep}' AND batch = '{stud_batch}') )
+                        AND str_to_date(expiry, '%Y-%m-%d') > CURDATE()
+
+                    UNION ALL
+
+                    SELECT content
+                    FROM exam_cell_data.general_notifications 
+                    WHERE str_to_date(expiry, '%Y-%m-%d') > CURDATE();
+                    """
                 student_notifies = get_all_data(query)
-                query = f"SELECT * FROM student_allocations WHERE prn = '{user_id}'"
+                query = f"SELECT * FROM student_allocations WHERE prn = '{user_id}' AND exam_id IN (SELECT exam_id FROM exam_data WHERE authorization = 1) ORDER BY STR_TO_DATE(exam_date, '%d/%m/%Y')"
                 student_allocations = get_all_data(query)
                 student_allocations_data = []
 
                 for allocation in student_allocations:
-                    query = f"SELECT * FROM rooms WHERE room_id = '{allocation[6]}'"
-                    room_data = get_all_data(query)
-                    query = f"SELECT * FROM room_classes WHERE room_class_id = '{room_data[0][2]}'"
-                    class_data = get_all_data(query)
-                    
+                    query = f"SELECT room_name FROM rooms WHERE room_id = '{allocation[6]}'"
+                    room_name = get_all_data(query)[0][0]
+                    # query = f"SELECT * FROM room_classes WHERE room_class_id = '{room_data[0][2]}'"
+                    # class_data = get_all_data(query)
+                    query = f"SELECT allocation_data FROM room_allocations WHERE room_id = {allocation[6]} AND exam_id ={allocation[1]}"
+                    room_alloc_data = json.loads(get_all_data(query)[0][0])                    
+                    total_rows = len(room_alloc_data)
+                    total_columns = len(room_alloc_data[0])
+                    query = f"SELECT day FROM exam_data WHERE exam_id = '{allocation[1]}'"
+                    day = get_all_data(query) [0][0]
                     allocation_data = {
                         'course_code': allocation[3],
                         'subject_name': allocation[4],
-                        'room_name': room_data[0][1],
+                        'room_name': room_name,
                         'date': datetime.strptime(allocation[2], "%d/%m/%Y").strftime("%Y-%m-%d"),
                         'student_row': allocation[7],
                         'student_col': allocation[8],
-                        'room_columns': class_data[0][3],
-                        'room_seats': class_data[0][2],
-                        'room_rows': class_data[0][4],
+                        'student_seat': allocation[9],
+                        'room_columns': total_columns,
+                        'room_rows': total_rows,
+                        'day':day,
+
                     }
                     student_allocations_data.append(allocation_data)
                 student_notify_msgs = [notify[0] for notify in student_notifies]
@@ -185,6 +302,8 @@ def login_view(request):
                     'name': stud_name,
                     'prn': user_id,
                     'department': stud_dep,
+                    'level': stud_level,
+                    'batch': stud_batch,
                     'user_type': user_type,
                     'notification': student_notify_msgs,
                     'student_allocations':student_allocations_data
